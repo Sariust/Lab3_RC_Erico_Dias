@@ -7,7 +7,7 @@
 #include <stdio.h>
 
 #define BAUDRATE B38400
-#define MODEMDEVICE "/dev/ttyS1"
+#define MODEMDEVICE "/dev/ttyS10"
 #define _POSIX_SOURCE 1 /* POSIX compliant source */
 #define FALSE 0
 #define TRUE 1
@@ -22,9 +22,9 @@ int main(int argc, char** argv)
     int i, sum = 0, speed = 0;
 
     if ( (argc < 2) ||
-         ((strcmp("/dev/ttyS0", argv[1])!=0) &&
-          (strcmp("/dev/ttyS1", argv[1])!=0) )) {
-        printf("Usage:\tnserial SerialPort\n\tex: nserial /dev/ttyS1\n");
+         ((strcmp("/dev/ttyS10", argv[1])!=0) &&
+          (strcmp("/dev/ttyS11", argv[1])!=0) )) {
+        printf("Usage:\tnserial SerialPort\n\tex: nserial /dev/ttyS11\n");
         exit(1);
     }
 
@@ -89,23 +89,30 @@ int main(int argc, char** argv)
     O ciclo FOR e as instruções seguintes devem ser alterados de modo a respeitar
     o indicado no guião
     */
+    while (STOP==FALSE) {  
+	    for (i = 0; i < 255; i++) {
+		buf[i] = getchar();
+		if ( buf[i] == '\n') break;
+	    }
+	    
+	    res = write(fd,buf,255);
+	    printf("%d bytes written\n Waiting for response...\n", res);
+	    
 
-    for (i = 0; i < 255; i++) {
-        buf[i] = getchar();
-        if ( buf[i] == '\n') break;
+	    res = read(fd,buf,255);   /* returns after 5 chars have been input */
+	    buf[res]=0;               /* so we can printf... */
+	    printf(":%s:%d\n", buf, res);
+	    if (buf[0]=='z') STOP=TRUE;
+	    memset(buf,0,strlen(buf));
     }
-    
-    res = write(fd,buf,255);
-    printf("%d bytes written\n", res);
-    
-    
+	    
     sleep(1);
     
     if ( tcsetattr(fd,TCSANOW,&oldtio) == -1) {
-        perror("tcsetattr");
-        exit(-1);
+	perror("tcsetattr");
+	exit(-1);
     }
-
+    
 
     close(fd);
     return 0;
