@@ -93,9 +93,10 @@ int main(int argc, char** argv)
 	    for (i = 0; i < 255; i++) {
 		buf[i] = getchar();
 		if ( buf[i] == '\n') break;
+		buf[i] == '\0';
 	    }
 	    
-	    res = write(fd,buf,255);
+	    res = write(fd,buf,i);
 	    printf("%d bytes written\n Waiting for response...\n", res);
 	    
 
