@@ -79,12 +79,6 @@ int main(int argc, char** argv)
     }
 	
     
-
-
-    /*
-    O ciclo WHILE deve ser alterado de modo a respeitar o indicado no guião
-    */
-
     tcsetattr(fd,TCSANOW,&oldtio);
     close(fd);
     return 0;
