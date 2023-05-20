@@ -14,6 +14,7 @@ volatile int STOP=FALSE;
 
 int ctrl_frame( char a, char c, int f) {
 	char buf[5];
+	
 	buf[0] = 0x5c;
 	buf[1] = a;
 	buf[2] = c;
@@ -25,16 +26,37 @@ int ctrl_frame( char a, char c, int f) {
 	return res;
 }
 
-int check_received( char* mess, char ctrl, int size) {	// MAQUINA DE ESTADOS (verifica se a mensagem foi passada corretamente)
-	if (mess[0] != 0x5c) {		
-	    return 1;			
-	} else if (mess[2] != ctrl) {		
-	    return 1;			
-	} else if ( (mess[1]^mess[2]) != mess[3]) {
-	    return 1;
-	} else {
-    return 0;
-    }
+int i_frame( char a, char c, int f) {
+	char buf[255];
+	int i;
+	buf[0] = 0x5c;
+	buf[1] = a;
+	buf[2] = c;
+	buf[3] = a^c;
+	for (i = 4; i < 253; i++) {
+		buf[i] = getchar();
+		if ( buf[i] == '\n') break;
+	}
+	if (buf[4]=='\n') return -1;
+	buf[i] = a^c;					//IMPLEMENTAR BCC!!!!!!!!!!!!!!!!
+	buf[i+1] = 0x5c;
+	
+	int res = write(f,buf,i+2);
+	//printf("%d bytes written\n", res);
+	return res;
+}
+
+int check_received( char* mess, char ctrl) {	// MAQUINA DE ESTADOS (verifica se a mensagem foi passada corretamente)
+
+	if (mess[0] != 0x5c) {					//flag1
+	    return -1;
+	} else if (mess[4] != 0x5c) {				//flag2
+	    return -1;	
+	} else if (mess[2] != ctrl) {				//ctrl
+	    return -1;			
+	} else if ( (mess[1]^mess[2]) != mess[3]) {		//bcc
+	    return -1;
+	} else return 0;
 }
 
 int main(int argc, char** argv)
@@ -94,11 +116,13 @@ int main(int argc, char** argv)
 
     printf("New termios structure set\n");
 
-	char addr = 0x01;
-	
-	char set = 0x03;
-	char ua = 0x07;
-	char disc = 0x0b;
+	char addr	= 0x01;
+	char i_f	= 0x02;
+	char set	= 0x03;
+	char ua		= 0x07;
+	char disc 	= 0x0b;
+	char rr 	= 0x21;
+	char rej 	= 0x25;
 
     while (STOP==FALSE) {  
 
@@ -106,16 +130,28 @@ int main(int argc, char** argv)
 	    res = ctrl_frame( addr, set, fd);			
 	    printf("Set sent\nWaiting for response...\n");
 	    res = read(fd,buf,255);   /* returns after 5 chars have been input */
-	    if (check_received(buf, ua, 5) == 1 ) break;
+	    if (check_received(buf, ua) != 0 ) break;
 	    printf("UA Received\nConection opened\n\n");
 	    
+	    //WRITE
+	    while(TRUE) {
+		    
+		    if ((res = i_frame( addr, i_f, fd)) == -1) break;
+		    printf("%d bytes written\n Waiting for response...\n\n", res);	 
+		    
+		    res = read(fd,buf,255);   /* returns after 5 chars have been input */
+		    if (check_received(buf, rr) != 0 ) {
+		    	printf("UA ERROR\n");
+		    	break;
+		    }
+		    printf("RR received\n");   
+	    }
 	    
 	    //CLOSE
-	    
 	    res = ctrl_frame( addr, disc, fd);			
 	    printf("DISC sent\nWaiting for response...\n");
 	    res = read(fd,buf,255);   /* returns after 5 chars have been input */
-	    if (check_received(buf, disc, 5) == 1 ) break;
+	    if (check_received(buf, disc) != 0 ) break;
 	    printf("DISC Received\nSending UA\n");
 	    res = ctrl_frame( addr, ua, fd);
 	    printf("UA sent\nClosing...\n");
@@ -135,3 +171,7 @@ int main(int argc, char** argv)
     close(fd);
     return 0;
 }
+
+//int ctrl_frame(char a, char c, int f ) {
+
+

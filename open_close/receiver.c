@@ -11,7 +11,7 @@
 
 volatile int STOP=FALSE;
 
-int ctrl_frame( char a, char c, int f) {	// SENDS a control frame
+int ctrl_frame( char a, char c, int f) {
 	char buf[5];
 	buf[0] = 0x5c;
 	buf[1] = a;
@@ -24,22 +24,43 @@ int ctrl_frame( char a, char c, int f) {	// SENDS a control frame
 	return res;
 }
 
-int check_received( char* mess, char ctrl, int size) {	// MAQUINA DE ESTADOS (verifica se a mensagem foi passada corretamente)
-	if (mess[0] != 0x5c) {		
-	    return 1;			
-	} else if (mess[2] != ctrl) {	
-	    return 1;			
-	} else if ( (mess[1]^mess[2]) != mess[3]) {
+
+int check_iframe( char* mess, int size) {
+	char i_f	= 0x02;
+	char disc 	= 0x0b;
+	
+	if (mess[0] != 0x5c) {					//flag1
+	    return -1;
+	} else if (mess[size - 1] != 0x5c) {			//flag2
+	    return -1;			
+	} else if ( (mess[1]^mess[2]) != mess[3]) {		//bcc1
+	    return -1;
+	} else if (mess[2] == disc) {				//DISC
 	    return 1;
+	} else if (mess[2] == i_f) {				//bcc2
+    		return 0;	
 	} else {
-    return 0;
-    }
+		return -1;
+	}
+}
+
+int check_received( char* mess, char ctrl) {	// MAQUINA DE ESTADOS (verifica se a mensagem foi passada corretamente)
+
+	if (mess[0] != 0x5c) {					//flag1
+	    return -1;
+	} else if (mess[4] != 0x5c) {				//flag2
+	    return -1;	
+	} else if (mess[2] != ctrl) {				//ctrl
+	    return -1;			
+	} else if ( (mess[1]^mess[2]) != mess[3]) {		//bcc
+	    return -1;
+	} else return 0;
 }
 
 
 int main(int argc, char** argv){
 
-    int fd,c, res;
+    int fd,c, res, temp;
     struct termios oldtio, newtio;
     char buf[255];
 
@@ -94,40 +115,52 @@ int main(int argc, char** argv){
     printf("New termios structure set\n");
     
     
-	char addr = 0x01;
-	char set = 0x03;
-	char ua = 0x07;
-	char disc = 0x0b;
+	char addr	= 0x01;
+	char i_f	= 0x02;
+	char set	= 0x03;
+	char ua		= 0x07;
+	char disc 	= 0x0b;
+	char rr 	= 0x21;
+	char rej 	= 0x25;
 
 
     while (STOP==FALSE) {       
     
     	//WAIT TO OPEN
         res = read(fd, buf, 255);   /* returns after 5 chars have been input */
-        if (check_received(buf, set, 5) == 1 ) break;
-        printf("SET received\nSending UA\n");
-        res = ctrl_frame( addr, ua, fd);
+        if (check_received(buf, set) != 0 ) break;
+        printf("SET received\nSending UA\n");	
+        res = ctrl_frame(addr, ua, fd);
 
+	//READ
+	while (TRUE) {
+	res = read(fd,buf,255);   /* returns after 5 chars have been input */
+        
+        if ((temp=check_iframe(buf, res)) == 1){
+		printf("DISC Received\n");
+		break;
+	} else if (temp != 0){
+		printf("IF ERROR!!! : %i\n", temp);
+		break;
+	}
+        buf[res]=0;               /* so we can printf... */
+        printf(":%.*s:%d\n", res-6 , buf+4, res);
+        res = ctrl_frame( addr, rr, fd);
 
+	}
+  
 
 	//CLOSE
-	printf("Waiting...\n");
-        res = read(fd, buf, 255);   /* returns after 5 chars have been input */
-        if (check_received(buf, disc, 5) == 1 ) break;
-        printf("DISC received\nSending DISC\n");
+
+        printf("Sending DISC\n");
         res = ctrl_frame( addr, disc, fd);
         res = read(fd, buf, 255);   /* returns after 5 chars have been input */
-        if (check_received(buf, ua, 5) == 1 ) break;	
+        if (check_received(buf, ua) != 0 ) break;	
         printf("UA received\nClosing...\n");
         STOP=TRUE;		//CLOSE THE PROGRAM
     }
 	
     
-
-    /*
-    O ciclo WHILE deve ser alterado de modo a respeitar o indicado no guião
-    */
-
     tcsetattr(fd,TCSANOW,&oldtio);
     close(fd);
     return 0;
