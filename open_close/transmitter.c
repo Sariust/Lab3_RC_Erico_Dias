@@ -27,11 +27,10 @@ int ctrl_frame( char a, char c, int f) {
 
 int check_received( char* mess, char ctrl, int size) {	// MAQUINA DE ESTADOS (verifica se a mensagem foi passada corretamente)
 	if (mess[0] != 0x5c) {		
-	    return 1;			// TENHO QUE DESCOBRIR OQ FZR exatamente
+	    return 1;			
 	} else if (mess[2] != ctrl) {		
-	    return 1;			// TENHO QUE DESCOBRIR OQ FZR exatamente
+	    return 1;			
 	} else if ( (mess[1]^mess[2]) != mess[3]) {
-	    printf("parity doesnt check\nflag:	%d \nctrl:	%d \nbcc:	%d \n ^:	%d\n", mess[0], mess[2], mess[3], (mess[1]^mess[2]));	// AQUI TAMBEM
 	    return 1;
 	} else {
     return 0;
@@ -136,7 +135,3 @@ int main(int argc, char** argv)
     close(fd);
     return 0;
 }
-
-//int ctrl_frame(char a, char c, int f ) {
-
-
