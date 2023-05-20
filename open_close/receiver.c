@@ -11,7 +11,7 @@
 
 volatile int STOP=FALSE;
 
-int ctrl_frame( char a, char c, int f) {
+int ctrl_frame( char a, char c, int f) {	// SENDS a control frame
 	char buf[5];
 	buf[0] = 0x5c;
 	buf[1] = a;
@@ -26,12 +26,10 @@ int ctrl_frame( char a, char c, int f) {
 
 int check_received( char* mess, char ctrl, int size) {	// MAQUINA DE ESTADOS (verifica se a mensagem foi passada corretamente)
 	if (mess[0] != 0x5c) {		
-	    return 1;			// TENHO QUE DESCOBRIR OQ FZR exatamente
-	} else if (mess[2] != ctrl) {
-	    printf("parou aqui\nrcv ctrl:	%d \nexp ctrl:	%d\n", mess[2], ctrl);		
-	    return 1;			// TENHO QUE DESCOBRIR OQ FZR exatamente
+	    return 1;			
+	} else if (mess[2] != ctrl) {	
+	    return 1;			
 	} else if ( (mess[1]^mess[2]) != mess[3]) {
-	    printf("parity doesnt check\nflag:	%d \nctrl:	%d \nbcc:	%d \n ^:	%d\n", mess[0], mess[2], mess[3], (mess[1]^mess[2]));	// AQUI TAMBEM
 	    return 1;
 	} else {
     return 0;
@@ -107,10 +105,9 @@ int main(int argc, char** argv){
     	//WAIT TO OPEN
         res = read(fd, buf, 255);   /* returns after 5 chars have been input */
         if (check_received(buf, set, 5) == 1 ) break;
-        printf("SET received\nSending UA\n");	
-        //printf("flag:	%d \nctrl:	%d \nbcc:	%d \n ^:	%d\n", buf[0], buf[2], buf[3], (buf[1]^buf[2]));
+        printf("SET received\nSending UA\n");
         res = ctrl_frame( addr, ua, fd);
-        //printf(":%s:	%d\n\n", buf, res);
+
 
 
 	//CLOSE
@@ -118,7 +115,6 @@ int main(int argc, char** argv){
         res = read(fd, buf, 255);   /* returns after 5 chars have been input */
         if (check_received(buf, disc, 5) == 1 ) break;
         printf("DISC received\nSending DISC\n");
-        //printf("flag:	%d \nctrl:	%d \nbcc:	%d \n ^:	%d\n", buf[0], buf[2], buf[3], (buf[1]^buf[2]));
         res = ctrl_frame( addr, disc, fd);
         res = read(fd, buf, 255);   /* returns after 5 chars have been input */
         if (check_received(buf, ua, 5) == 1 ) break;	
